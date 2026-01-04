@@ -1,9 +1,10 @@
 CFLAGS=-Wall -Wextra -Werror -std=c23 -pedantic -ggdb
 CC=gcc
 TARGET=main
+SRCS= $(wildcard *.c)
 
-$(TARGET): $(TARGET).c
-	$(CC) $(CFLAGS) -o $@ $<
+$(TARGET): $(SRCS)
+	$(CC) $(CFLAGS) -o $@ $^
 
 run:
 	./$(TARGET)

@@ -1,9 +1,9 @@
 #include <stdio.h>
-
-// 1000
-// 0001
+#include "MemoryManager.h"
 
 int main(void)
 {
+   mm_init(1024);
+   // mm_extendHeap(2);
    return 0;
 }
