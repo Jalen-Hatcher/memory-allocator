@@ -35,9 +35,12 @@ enum
 #define ROUNDUP(sz) (((sz) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1))
 
 // initialize memory
-int mm_init(size_t size);
+int mm_Init(size_t size);
 
 // extend the heap by (size) words
-void *mm_extendHeap(size_t size);
+void *mm_ExtendHeap(size_t words);
+
+// allocate user-level memory
+void *mm_Malloc(size_t size);
 
 #endif

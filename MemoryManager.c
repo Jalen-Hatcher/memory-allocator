@@ -23,7 +23,7 @@ static int reserveMemory(size_t heapSize)
    return 0;
 }
 
-int mm_init(size_t sz) // what?
+int mm_Init(size_t sz) // what?
 {
    if(reserveMemory(sz) == -1)
       return -1;
@@ -37,6 +37,7 @@ int mm_init(size_t sz) // what?
 static void *memBrk(int incr)
 {
    char *oldBreak = memBreak;
+   printf("Max address: %p\nNew Break: %p\n", (void *)memMaxAddr, (void *)(memBreak + incr));
 
    errno = ENOMEM;
    if((incr < 0) || ((memBreak + incr) > memMaxAddr))
@@ -85,7 +86,7 @@ static void *coalesce(void *bp)
    return bp;
 }
 
-void *mm_extendHeap(size_t words)
+void *mm_ExtendHeap(size_t words)
 {
    char *bp;
    size_t size; /* Allocate an even number of words to maintain alignment */
@@ -101,4 +102,16 @@ void *mm_extendHeap(size_t words)
    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); // new epilogue header
    // coalesce if the previous block was free
    return coalesce(bp);
+}
+
+void *mm_Malloc(size_t size)
+{
+   // if(size > 0)
+   // {
+   //    void *bp;
+   //    size_t alignedSize = ROUNDUP(size);
+   // }
+   (void)size;
+
+   return NULL;
 }

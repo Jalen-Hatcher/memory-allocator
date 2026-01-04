@@ -3,7 +3,7 @@
 
 int main(void)
 {
-   mm_init(1024);
-   // mm_extendHeap(2);
+   mm_Init(256);
+   // mm_ExtendHeap(2);
    return 0;
 }
