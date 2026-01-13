@@ -5,39 +5,38 @@
 #include <sys/mman.h>
 #include "MemoryManager.h"
 
-#define HEAP_START_HINT 0x107000000L
+static char heap[HEAP_CAP]; // heap array
 
 static char *memHeap; // pointer to first byte of heap
 static char *memBreak; // pointer to last byte of heap
 static char *memMaxAddr; // max legal heap addr plus 1
 
-static int reserveMemory(size_t heapSize)
+int mm_Init()
 {
-   memHeap = mmap((void *)HEAP_START_HINT, heapSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-   if(memHeap != MAP_FAILED)
-   {
-      return -1;
-   }
+   memHeap = heap;
    memBreak = memHeap;
-   memMaxAddr = memHeap + heapSize;
-   return 0;
-}
+   memMaxAddr = memHeap + HEAP_CAP;
 
-int mm_Init(size_t sz) // what?
-{
-   if(reserveMemory(sz) == -1)
-      return -1;
-   PUT(memHeap, 0);
+   PUT(memHeap, 0); // double-word aligned
    PUT((memHeap + WSIZE), PACK(8, 1)); // prologue header
    PUT(memHeap + (2 * WSIZE), PACK(8, 1)); // prologue footer
    PUT(memHeap + (3 * WSIZE), PACK(0, 1)); // epilogue footer
    return 0;
 }
 
-static void *memBrk(int incr)
+void mm_Survey()
+{
+   uint32_t *itr = (uint32_t *)(memHeap + WSIZE);
+   while(GET_BLOCK_SIZE(itr) != 0)
+   {
+      printf("Size: %d\nAllocation: %d\n\n", GET_BLOCK_SIZE(itr), GET_ALLOC(itr));
+      itr = (uint32_t *)HDRP(NEXT_BLKP((itr + 1)));
+   }
+}
+
+static void *mem_sbrk(int incr)
 {
    char *oldBreak = memBreak;
-   printf("Max address: %p\nNew Break: %p\n", (void *)memMaxAddr, (void *)(memBreak + incr));
 
    errno = ENOMEM;
    if((incr < 0) || ((memBreak + incr) > memMaxAddr))
@@ -91,7 +90,7 @@ void *mm_ExtendHeap(size_t words)
    char *bp;
    size_t size; /* Allocate an even number of words to maintain alignment */
    size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE;
-   if((long)(bp = memBrk(size)) == -1)
+   if((long)(bp = mem_sbrk(size)) == -1)
    {
       return NULL;
    }

@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -Werror -std=c23 -pedantic -ggdb
+CFLAGS=-Wall -Wextra -Werror -std=c23 -g
 CC=gcc
 TARGET=main
 SRCS= $(wildcard *.c)

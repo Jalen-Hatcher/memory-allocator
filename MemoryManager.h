@@ -9,7 +9,8 @@ enum
    WSIZE = 4,
    DSIZE = 8, // (bytes)
    ALIGNMENT = 8, // double-word aligned
-   MAX_HEAP_EXTEND = 1 << 12
+   MAX_HEAP_EXTEND = 1 << 12,
+   HEAP_CAP = 4096
 };
 
 // encode the size and allocation type (used/unused)
@@ -35,12 +36,15 @@ enum
 #define ROUNDUP(sz) (((sz) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1))
 
 // initialize memory
-int mm_Init(size_t size);
+int mm_Init();
 
 // extend the heap by (size) words
 void *mm_ExtendHeap(size_t words);
 
 // allocate user-level memory
 void *mm_Malloc(size_t size);
+
+// visualize memory
+void mm_Survey();
 
 #endif
