@@ -1,17 +1,35 @@
-#ifndef ALLOCATOR_H
-#define ALLOCATOR_H
+#ifndef I_ALLOCATOR_H
+#define I_ALLOCATOR_H
 
 #include "stdint.h"
-#include "stdio.h"
 
 enum
 {
    WSIZE = 4,
    DSIZE = 8, // (bytes)
    ALIGNMENT = DSIZE, // double-word aligned
-   MAX_HEAP_EXTEND = 1 << 12,
    HEAP_CAP = 4096
 };
+
+static uint8_t heap[HEAP_CAP] = { 0 };
+
+struct I_Allocator_Api_t;
+
+typedef struct
+{
+   const struct I_Allocator_Api_t *api;
+} I_Allocator_t;
+
+typedef struct I_Allocator_Api_t
+{
+   /*!
+    * @param instance
+    * @param size
+    * @param copyTo
+    * @returns void *
+    */
+   void *(*Alloc)(I_Allocator_t *instance, uint32_t size);
+} I_Allocator_Api_t;
 
 // encode the size and allocation type (used/unused)
 #define PACK(size, alloc) ((size) | (alloc))
@@ -36,9 +54,8 @@ enum
 // align memory segment request (8 bytes/double word)
 #define ROUNDUP(sz) (((sz) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1))
 
-/*!
- * allocate a block of memory
- */
-void *Allocator_Alloc(uint32_t size);
-
+static inline void *Allocator_Alloc(I_Allocator_t *instance, uint32_t size)
+{
+   return instance->api->Alloc(instance, size);
+}
 #endif

@@ -7,7 +7,7 @@ $(TARGET): $(SRCS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 run:
-	./$(TARGET)
+	make && ./$(TARGET)
 
 clean:
 	rm build/main

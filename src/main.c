@@ -1,12 +1,11 @@
-#include <assert.h>
-#include "Allocator.h"
+#include "Allocator_Linear.h"
+#include "Application.h"
+
+static Allocator_Linear_t allocatorInstance;
 
 int main(void)
 {
-   void *ptr = Allocator_Alloc(502);
-   assert(ptr != NULL);
-
-   ptr = Allocator_Alloc(50);
-   assert(ptr != NULL);
+   Allocator_Linear_Init(&allocatorInstance);
+   Application_Init(&allocatorInstance.interface);
    return 0;
 }
