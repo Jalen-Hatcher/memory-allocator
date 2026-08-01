@@ -2,9 +2,20 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "../Utilities/utils.h"
+#include "AllocatorUtils.h"
 #include "Allocator_Linear.h"
 #include "I_Allocator.h"
+#include "utils.h"
+
+enum
+{
+   WSIZE = 4,
+   DSIZE = 8, // (bytes)
+   ALIGNMENT = DSIZE, // double-word aligned
+   HEAP_CAP = 4096
+};
+
+static uint8_t heap[HEAP_CAP] = { 0 };
 
 typedef Allocator_Linear_t Instance_t;
 
@@ -22,7 +33,7 @@ static inline bool IsEpilogueHeader(void *blockPtr)
 {
    // void* because a header pointer could be passed in as
    // uint8_t* or uint32_t*, doesn't really matter functionally
-   return (GET(HDRP(blockPtr)) == 0x1);
+   return (GET(HDRP_FROM_BP(blockPtr)) == 0x1);
 }
 
 static void *coalesce(void *blockPtr)
@@ -39,34 +50,36 @@ static void *coalesce(void *blockPtr)
    if(prevAlloc & !nextAlloc)
    {
       blockSize += GET_BLOCK_SIZE(NEXT_BLKP(blockPtr));
-      PUT(HDRP(blockPtr), PACK(blockSize, 0));
-      PUT(FTRP(NEXT_BLKP(blockPtr)), PACK(blockSize, 0));
+      PUT(HDRP_FROM_BP(blockPtr), PACK(blockSize, 0));
+      PUT(FTRP_FROM_BP(blockPtr), PACK(blockSize, 0));
    }
 
    else if(!prevAlloc && nextAlloc)
    {
       blockSize += GET_BLOCK_SIZE(PREV_BLKP(blockPtr));
-      PUT(FTRP(blockPtr), PACK(blockSize, 0));
-      PUT(HDRP(PREV_BLKP(blockPtr)), PACK(blockSize, 0));
+      PUT(FTRP_FROM_BP(blockPtr), PACK(blockSize, 0));
+      PUT(HDRP_FROM_BP(PREV_BLKP(blockPtr)), PACK(blockSize, 0));
    }
 
    else
    {
       blockSize += GET_BLOCK_SIZE(PREV_BLKP(blockPtr)) + GET_BLOCK_SIZE(NEXT_BLKP(blockPtr));
-      PUT(HDRP(PREV_BLKP(blockPtr)), PACK(blockSize, 0));
-      PUT(FTRP(NEXT_BLKP(blockPtr)), PACK(blockSize, 0));
+      PUT(HDRP_FROM_BP(PREV_BLKP(blockPtr)), PACK(blockSize, 0));
+      PUT(FTRP_FROM_BP(NEXT_BLKP(blockPtr)), PACK(blockSize, 0));
       blockPtr = PREV_BLKP(blockPtr);
    }
 
    return blockPtr;
 }
 
-void Allocator_Free(void *blockPtr)
+static void Free(I_Allocator_t *instance, void *payload)
 {
-   PUT(HDRP(blockPtr), PACK(0, 0));
-   PUT(FTRP(blockPtr), PACK(0, 0));
+   (void)instance;
 
-   coalesce(blockPtr);
+   TOGGLE_ALLOC(HDRP_FROM_PYLDP(payload));
+   TOGGLE_ALLOC(FTRP_FROM_PYLDP(payload));
+
+   coalesce(((uint8_t *)payload) - WSIZE);
 }
 
 // first fit, no coalesce for now
@@ -88,21 +101,21 @@ static void *Alloc(I_Allocator_t *_instance, uint32_t size)
    {
       if((!GET_ALLOC(currentBlock) && size <= GET_BLOCK_SIZE(currentBlock)) || IsEpilogueHeader(currentBlock))
       {
-         PUT(HDRP(currentBlock), PACK(blockSize, 1)); // header
-         PUT(FTRP(currentBlock), PACK(blockSize, 1)); // footer
+         PUT(HDRP_FROM_BP(currentBlock), PACK(blockSize, 1)); // header
+         PUT(FTRP_FROM_BP(currentBlock), PACK(blockSize, 1)); // footer
          PUT(NEXT_BLKP(currentBlock), PACK(0, 1)); // new epilogue header
 
          printf("Offset of current allocation: %lu\n", currentBlock - heap);
          printf("Block size: %d\n\n", blockSize);
 
-         return PYLDP(currentBlock);
+         return PYLDP_FROM_BP(currentBlock);
       }
       currentBlock = NEXT_BLKP(currentBlock);
    }
    return NULL;
 }
 
-static const I_Allocator_Api_t api = { Alloc };
+static const I_Allocator_Api_t api = { Alloc, Free };
 
 void Allocator_Linear_Init(Allocator_Linear_t *instance)
 {
