@@ -2,9 +2,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "../Utilities/utils.h"
 #include "Allocator_Linear.h"
 #include "I_Allocator.h"
-#include "utils.h"
 
 typedef Allocator_Linear_t Instance_t;
 
