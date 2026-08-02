@@ -13,7 +13,8 @@ enum
    DSIZE = 2 * WSIZE, // (bytes)
    ALIGNMENT = DSIZE,
    MIN_BLOCK_SIZE = 2 * DSIZE, // double-word aligned
-   HEAP_CAP = ALIGNMENT * 512
+   HEAP_CAP = ALIGNMENT * 512,
+   HEAP_OFFSET_START = 3 * WSIZE,
 };
 
 static uint8_t heap[HEAP_CAP] = { 0 };
@@ -35,7 +36,7 @@ static inline bool IsEpilogueHeader(void *blockPtr)
    return (GET(HDRP_FROM_BP(blockPtr)) == 0x1);
 }
 
-static void *coalesce(void *blockPtr)
+static void *Coalesce(void *blockPtr)
 {
    uint8_t prevAlloc = GET_ALLOC(PREV_BLKP(blockPtr));
    uint8_t nextAlloc = GET_ALLOC(NEXT_BLKP(blockPtr));
@@ -78,11 +79,11 @@ static void Free(I_Allocator_t *instance, void *payload)
    TOGGLE_ALLOC(HDRP_FROM_PYLDP(payload));
    TOGGLE_ALLOC(FTRP_FROM_PYLDP(payload));
 
-   coalesce(((uint8_t *)payload) - WSIZE);
+   Coalesce(((uint8_t *)payload) - WSIZE);
 }
 
 // Place a block once confirmed to fit, split if remainder > MIN_BLOCK_SIZE
-static void place(void *blockPtr, uint32_t requestedBlockSize)
+static void Place(void *blockPtr, uint32_t requestedBlockSize)
 {
    uint32_t splitBlockSize = GET_BLOCK_SIZE(HDRP_FROM_BP(blockPtr)) - requestedBlockSize;
 
@@ -109,16 +110,16 @@ static void *Alloc(I_Allocator_t *instance, uint32_t size)
 {
    (void)instance;
 
-   // point to potential first allocated block
-   uint8_t *currentBlock = heap + (3 * WSIZE);
-   uint32_t requestedBlockSize = WSIZE + ROUNDUP(size) + WSIZE;
+   // Point to potential first allocated block
+   uint8_t *currentBlock = heap + HEAP_OFFSET_START;
+   uint32_t requestedBlockSize = BLOCK_SIZE_RESOLVED(size);
 
-   // check if we're at the last possible location for an epilogue header
+   // Check if we're at the last possible location for an epilogue header
    while((currentBlock + requestedBlockSize) <= &heap[HEAP_CAP - 1] - WSIZE)
    {
       if((!GET_ALLOC(currentBlock) && size <= GET_BLOCK_SIZE(currentBlock)))
       {
-         place(currentBlock, requestedBlockSize);
+         Place(currentBlock, requestedBlockSize);
 
          return PYLDP_FROM_BP(currentBlock);
       }

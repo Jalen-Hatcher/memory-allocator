@@ -30,4 +30,7 @@
 
 // Align memory segment request (8 bytes/double word)
 #define ROUNDUP(sz) (((sz) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1))
+
+// Get the resolved block size given a request
+#define BLOCK_SIZE_RESOLVED(bs) 2 * WSIZE + ROUNDUP(bs)
 #endif
