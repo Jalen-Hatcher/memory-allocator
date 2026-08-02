@@ -1,11 +1,11 @@
-#include "Allocator_Linear.h"
+#include "Allocator_Rev1.h"
 #include "Application.h"
 
-static Allocator_Linear_t allocatorInstance;
+static Allocator_Rev1_t allocatorInstance;
 
 int main(void)
 {
-   Allocator_Linear_Init(&allocatorInstance);
+   Allocator_Rev1_Init(&allocatorInstance);
    Application_Init(&allocatorInstance.interface);
    return 0;
 }

@@ -3,30 +3,28 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "AllocatorUtils.h"
-#include "Allocator_Linear.h"
+#include "Allocator_Rev1.h"
 #include "I_Allocator.h"
 #include "utils.h"
 
 enum
 {
    WSIZE = 4,
-   DSIZE = 8, // (bytes)
+   DSIZE = 2 * WSIZE, // (bytes)
    ALIGNMENT = DSIZE, // double-word aligned
    HEAP_CAP = 4096
 };
 
 static uint8_t heap[HEAP_CAP] = { 0 };
 
-typedef Allocator_Linear_t Instance_t;
+typedef Allocator_Rev1_t Instance_t;
 
-static void InitializeHeap(Instance_t *instance)
+static void InitializeHeap(void)
 {
    PUT(heap, 0);
    PUT(heap + (1 * WSIZE), PACK(8, 1)); // prologue header
    PUT(heap + (2 * WSIZE), PACK(8, 1)); // prologue footer
    PUT(heap + (3 * WSIZE), PACK(0, 1)); // epilogue header
-
-   instance->_private.heapIsInitialized = true;
 }
 
 static inline bool IsEpilogueHeader(void *blockPtr)
@@ -83,14 +81,9 @@ static void Free(I_Allocator_t *instance, void *payload)
 }
 
 // first fit, no coalesce for now
-static void *Alloc(I_Allocator_t *_instance, uint32_t size)
+static void *Alloc(I_Allocator_t *instance, uint32_t size)
 {
-   REINTERPRET(instance, _instance, Allocator_Linear_t *);
-
-   if(!instance->_private.heapIsInitialized)
-   {
-      InitializeHeap(instance);
-   }
+   (void)instance;
 
    // point to potential first allocated block
    uint8_t *currentBlock = heap + (3 * WSIZE);
@@ -117,7 +110,9 @@ static void *Alloc(I_Allocator_t *_instance, uint32_t size)
 
 static const I_Allocator_Api_t api = { Alloc, Free };
 
-void Allocator_Linear_Init(Allocator_Linear_t *instance)
+void Allocator_Rev1_Init(Allocator_Rev1_t *instance)
 {
    instance->interface.api = &api;
+
+   InitializeHeap();
 }
