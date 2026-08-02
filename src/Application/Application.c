@@ -11,13 +11,6 @@ typedef struct
    uint8_t id;
 } Context_t;
 
-typedef struct
-{
-   Context_t *context;
-   uint64_t header;
-   uint32_t footer;
-} NewContext_t;
-
 void Application_Init(I_Allocator_t *allocator)
 {
    void *ptr1, *ptr2, *ptr3;

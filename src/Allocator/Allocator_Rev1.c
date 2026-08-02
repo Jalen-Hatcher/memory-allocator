@@ -11,8 +11,9 @@ enum
 {
    WSIZE = 4,
    DSIZE = 2 * WSIZE, // (bytes)
-   ALIGNMENT = DSIZE, // double-word aligned
-   HEAP_CAP = 4096
+   ALIGNMENT = DSIZE,
+   MIN_BLOCK_SIZE = 2 * DSIZE, // double-word aligned
+   HEAP_CAP = ALIGNMENT * 512
 };
 
 static uint8_t heap[HEAP_CAP] = { 0 };
@@ -80,26 +81,53 @@ static void Free(I_Allocator_t *instance, void *payload)
    coalesce(((uint8_t *)payload) - WSIZE);
 }
 
-// first fit, no coalesce for now
+// Place a block once confirmed to fit, split if remainder > MIN_BLOCK_SIZE
+static void place(void *blockPtr, uint32_t requestedBlockSize)
+{
+   uint32_t splitBlockSize = GET_BLOCK_SIZE(HDRP_FROM_BP(blockPtr)) - requestedBlockSize;
+
+   if(splitBlockSize >= MIN_BLOCK_SIZE)
+   {
+      // Place requested block
+      PUT(HDRP_FROM_BP(blockPtr), PACK(requestedBlockSize, 1));
+      PUT(FTRP_FROM_BP(blockPtr), PACK(requestedBlockSize, 1));
+
+      // Place remaining split block
+      PUT(HDRP_FROM_BP(NEXT_BLKP(blockPtr)), PACK(splitBlockSize, 0));
+      PUT(FTRP_FROM_BP(NEXT_BLKP(blockPtr)), PACK(splitBlockSize, 0));
+   }
+
+   else
+   {
+      TOGGLE_ALLOC(HDRP_FROM_BP(blockPtr));
+      TOGGLE_ALLOC(FTRP_FROM_BP(blockPtr));
+   }
+}
+
+// First-Fit
 static void *Alloc(I_Allocator_t *instance, uint32_t size)
 {
    (void)instance;
 
    // point to potential first allocated block
    uint8_t *currentBlock = heap + (3 * WSIZE);
-   uint32_t blockSize = WSIZE + ROUNDUP(size) + WSIZE;
+   uint32_t requestedBlockSize = WSIZE + ROUNDUP(size) + WSIZE;
 
    // check if we're at the last possible location for an epilogue header
-   while((currentBlock + blockSize) <= &heap[HEAP_CAP - 1] - WSIZE)
+   while((currentBlock + requestedBlockSize) <= &heap[HEAP_CAP - 1] - WSIZE)
    {
-      if((!GET_ALLOC(currentBlock) && size <= GET_BLOCK_SIZE(currentBlock)) || IsEpilogueHeader(currentBlock))
+      if((!GET_ALLOC(currentBlock) && size <= GET_BLOCK_SIZE(currentBlock)))
       {
-         PUT(HDRP_FROM_BP(currentBlock), PACK(blockSize, 1)); // header
-         PUT(FTRP_FROM_BP(currentBlock), PACK(blockSize, 1)); // footer
-         PUT(NEXT_BLKP(currentBlock), PACK(0, 1)); // new epilogue header
+         place(currentBlock, requestedBlockSize);
 
-         printf("Offset of current allocation: %lu\n", currentBlock - heap);
-         printf("Block size: %d\n\n", blockSize);
+         return PYLDP_FROM_BP(currentBlock);
+      }
+
+      else if(IsEpilogueHeader(currentBlock))
+      {
+         PUT(HDRP_FROM_BP(currentBlock), PACK(requestedBlockSize, 1)); // header
+         PUT(FTRP_FROM_BP(currentBlock), PACK(requestedBlockSize, 1)); // footer
+         PUT(NEXT_BLKP(currentBlock), PACK(0, 1)); // new epilogue header
 
          return PYLDP_FROM_BP(currentBlock);
       }
@@ -110,7 +138,7 @@ static void *Alloc(I_Allocator_t *instance, uint32_t size)
 
 static const I_Allocator_Api_t api = { Alloc, Free };
 
-void Allocator_Rev1_Init(Allocator_Rev1_t *instance)
+void Allocator_Rev1_Init(Instance_t *instance)
 {
    instance->interface.api = &api;
 
